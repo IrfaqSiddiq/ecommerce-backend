@@ -14,10 +14,31 @@ const productController = {
 
     console.log("********image", file);
 
-    // Read the file and insert it into the database
-    const fileData = fs.readFileSync(file.path);
+    let fileData, mimeType;
 
-    const mimeType = file.mimetype;
+    if (file) {
+      fileData = fs.readFileSync(file.path);
+      mimeType = file.mimetype;
+    }
+
+    // Ensure productType is parsed into an array (if it's a string)
+    let parsedProductType = [];
+    if (typeof productType === "string") {
+      try {
+        parsedProductType = JSON.parse(productType);
+      } catch (parseError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid product type format. Expected an array" });
+      }
+    } else if (Array.isArray(productType)) {
+      parsedProductType = productType; // No need to parse if it's already an array
+    } else {
+      return res.status(400).json({
+        error: "Product type must be an array or a valid JSON string",
+      });
+    }
+
     // Validate product_name length (must be > 0)
     if (!product_name || product_name.trim().length === 0) {
       return res.status(400).json({ error: "Product name must not be empty" });
@@ -31,7 +52,7 @@ const productController = {
     }
 
     // Validate productTag (must be an array)
-    if (!Array.isArray(productType) || productType.length === 0) {
+    if (!Array.isArray(parsedProductType) || parsedProductType.length === 0) {
       return res
         .status(400)
         .json({ error: "Product tag must be a non-empty array" });
@@ -48,7 +69,7 @@ const productController = {
         product_name,
         description,
         price,
-        productType,
+        productType: parsedProductType,
         fileData,
         mimeType,
       };
@@ -96,12 +117,10 @@ const productController = {
 
       const result = await ProductModel.updateProduct(id, updatedFields);
       if (result) {
-        res
-          .status(200)
-          .json({
-            message: `Product with ID ${id} updated successfully`,
-            product: result,
-          });
+        res.status(200).json({
+          message: `Product with ID ${id} updated successfully`,
+          product: result,
+        });
       } else {
         res.status(404).json({ message: `Product with ID ${id} not found` });
       }
